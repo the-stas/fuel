@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <style>
+        table {
+            margin: 25px 0;
+            width: 100%;
+        }
+
+        table th, table td {
+            padding: 10px;
+            text-align: center;
+        }
+
+        table, th, td {
+            border: 1px solid;
+            border-collapse: collapse;
+
+
+        }
+
+     tbody tr:nth-child(odd) {
+        background-color: #ebe8e8;
+      }
+
+      tbody tr:nth-child(even) {
+        background-color: #f3f3f3 ;
+      }
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  </head>
+  <script>
+    $(document).ready(function(){
+      $("button").click(function(){
+        $("p").hide();
+      });
+
+      function pars_fuel(fuel,desc){
+        let myReg = new RegExp(fuel+"(.*)(\n|$)" ,"g")
+        let find = desc.match(myReg);
+        //  console.log(find);
+        if(!find) return "-";
+        //console.log(find[0].indexOf('відсутнє'));
+        return  (find[0].indexOf('відсутнє')>0)? "-": find;
+      }
+
+      $.ajax({
+        url: "https://api.wog.ua/fuel_stations"
+      }).done(function(resp) {
+        window.cities = [];
+        window.citiesNames = [];
+
+        for ( const station of resp.data.stations ) {
+          if ( 'city' in station && 'id' in station && 'link' in station ) {
+            if ( ! window.citiesNames.includes(station.city) ) {
+              window.citiesNames.push( station.city );
+
+              if ( ! window.cities[ station.city ] ) {
+                window.cities[ station.city ] = [];
+              }
+
+              window.cities[ station.city ].push( station.id );
+            }
+            else {
+              window.cities[ station.city ].push( station.id );
+            }
+          }
+        }
+
+        window.citiesNames.sort( ( a, b ) => {
+          return a.localeCompare( b, 'en' );
+        } );
+
+        const selectContainer = document.getElementById( 'cities' );
+
+        window.citiesNames.forEach( ( stationName, key ) => {
+          const id = window.cities[ stationName ];
+          const selected = stationName === 'Uman\'';
+
+          selectContainer[key] = new Option(stationName, id, selected, selected);
+        } );
+
+        renderAzs(selectContainer.value.split( ',' ));
+
+        selectContainer.addEventListener( 'change', ( event ) => {
+          document.getElementById( 'table' ).innerHTML = '';
+          const selected = event.target.value.split( ',' );
+
+          renderAzs(selected);
+        } );
+
+        function renderAzs(selected) {
+          for ( const azs of selected ) {
+            $.ajax({
+              url: 'https://api.wog.ua/fuel_stations/' + azs,
+            }).done(function(resp2) {
+              // $("table").append("<tr><td>"i.city"</td><td>"+i.name+"</td><td>М100</td><td>А95</td><td>М95</td><td>А92</td><td>ДП</td><td>МДП+</td><td>ГАЗ</td></tr>");
+              let desc = resp2.data.workDescription;
+              let M100 = pars_fuel("М100",desc);
+              let A95 = pars_fuel("А95",desc);
+              let M95 = pars_fuel("М95",desc);
+              let A92 = pars_fuel("A92",desc);
+              if (M100!=="-" || A95!=="-" || M95!=="-" || A92!=="-" )
+                $("#table").append("<tr><td>"+resp2.data.name+"</td><td>"+resp2.data.city+"</td><td>"+M100+"</td><td>"+A95+"</td><td>"+M95+"</td><td>"+A92+"</td></tr>");
+            });
+          }
+        }
+      });
+    });
+  </script>
+  <body>
+    <h2>АЗС "<b>WOG</b>" tracker</h2>
+    <label>
+      City
+      <select id="cities"></select>
+    </label>
+    <table style="border:1">
+      <thead>
+        <td>
+          <b>АДРЕСА</b>
+        </td>
+        <td>
+         <b>МІСТО</b>
+        </td>
+        <td>
+          <b>М100</b>
+        </td>
+        <td>
+          <b>А95</b>
+        </td>
+        <td>
+          <b>М95</b>
+        </td>
+        <td>
+          <b>А92</b>
+        </td>
+      </thead>
+      <tbody id="table">
+
+      </tbody>
+    </table>
+  </body>
+</html>
